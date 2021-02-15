@@ -1,0 +1,201 @@
+import datetime
+import discord
+import random
+import json
+import requests
+from discord.ext import commands
+from discord.utils import get
+import youtube_dl
+import os
+
+client = commands.Bot(command_prefix='!')
+client.remove_command('help')
+
+guild_welcome = {768886800294346752}
+hello_words = ['привет', 'приветствую', 'хай', 'здравствуй', 'хеллоу', 'хелоу', 'hello', 'hi']
+bot_words = ['бот', 'bot']
+otveti_bota = ['Приветствую!', 'Здравствуйте!']
+help_words = ['help', 'помоги', 'команды', 'хелп', 'что ты можешь', 'что ты можешь?']
+
+
+@client.event
+async def on_ready():
+    print('Program is started')
+
+
+@client.event
+async def on_message(message):
+    msg = message.content.lower()
+
+    if msg in hello_words:
+        await message.channel.send(random.choice(otveti_bota))
+
+    if msg in bot_words:
+        await message.channel.send('Звали?')
+
+    if msg in help_words:
+        await message.channel.send('Чтобы узнать команды пропишите -help')
+
+    await client.process_commands(message)
+
+
+@client.command(pass_context=True)
+async def fox(ctx):
+    response = requests.get('https://some-random-api.ml/img/fox')
+    json_data = json.loads(response.text)
+
+    embed = discord.Embed(color=0xff9900, title='Fox')
+    embed.set_image(url=json_data['link'])
+    await ctx.send(embed=embed)
+
+
+@client.command(pass_context=True)
+async def clear(ctx, arg):
+    emb = discord.Embed(title="Очитска чата", colour=discord.Color.green())
+    await ctx.channel.purge(limit=int(arg))
+    emb.add_field(name='Количество очищенных строк:', value=format(arg))
+    await ctx.send(embed=emb)
+
+
+@client.command(pass_context=True)
+@commands.has_permissions(administrator=True)
+async def kick(ctx, member: discord.Member, *, reason=None):
+    emb = discord.Embed(title="Кик", colour=discord.Color.red())
+    await ctx.channel.purge(limit=1)
+
+    await member.kick(reason=reason)
+    emb.add_field(name='Был кикнут', value='Кикнули: {}'.format(member.mention))
+    emb.set_footer(text='Кик был выдан администратором {}'.format(ctx.author.name), icon_url=ctx.author.avatar_url)
+
+    await ctx.send(embed=emb)
+
+
+@client.command(pass_context=True)
+@commands.has_permissions(administrator=True)
+async def ban(ctx, member: discord.Member, *, reason=None):
+    emb = discord.Embed(title="Бан", colour=discord.Color.red())
+    await ctx.channel.purge(limit=1)
+
+    await member.ban(reason=reason)
+
+    emb.add_field(name='Выдан бан', value='Забанен: {}'.format(member.mention))
+    emb.set_footer(text='Был забанен администратором {}'.format(ctx.author.name), icon_url=ctx.author.avatar_url)
+
+    await ctx.send(embed=emb)
+
+
+@client.command(pass_context=True)
+@commands.has_permissions(administrator=True)
+async def unban(ctx, *, member):
+    await ctx.channel.purge(limit=1)
+
+    banned_users = await ctx.guild.bans()
+    member_name, member_discriminator = member.split('#')
+
+    for ban_entry in banned_users:
+        user = ban_entry.user
+
+        if (user.name, user.discriminator) == (member_name, member_discriminator):
+            await ctx.guild.unban(user)
+            await ctx.send(f'Пользователь {user.mention} был разбанен.')
+            return
+
+
+@client.command(pass_context=True)
+@commands.has_permissions(administrator=True)
+async def on_member_join(member):
+    channel = client.get_channel(768886800294346752)
+    role = discord.utils.get(member.guild.roles, id=769207829730426910)
+    await member.add_roles(role)
+    await channel.send(embed=discord.Embed(description=f'Пользователь {member.name} присоеденлися к нашему серверу!'))
+
+
+@client.command(pass_context=True)
+async def help(ctx):
+    emb = discord.Embed(title="Commands / About bot", colour=discord.Color.green())
+    emb.add_field(name='!clear', value='Очищает чат. Пример: !clear 100', inline=False)
+    emb.add_field(name='О боте',
+                  value='СметанаБот - это незаменимый помощник на вашем Дискорд сервере!'
+                        ' Данный бот обладает большим функицоналом.', inline=False)
+    emb.add_field(name='!fox', value='Кидает случайное фото лисы.', inline=False)
+    emb.add_field(name='!kick', value='Выкидывает человека с сервера. Пример: !kick @Chelovek', inline=False)
+    emb.add_field(name='!ban', value='Запрещает вход на сервер человеку. '
+                                     'Пример: !ban @Chelovek Причина: За плохое поведение', inline=False)
+    emb.add_field(name='!unban', value='Разрешает вход на сервер человеку,'
+                                       ' которому раньше заретили вход. Пример: !unban Chelovek (без собаки)', inline=False)
+    emb.add_field(name='!time', value="Показывает время.", inline=False)
+    emb.add_field(name='!play', value='Играет музыку.', inline=False)
+    emb.add_field(name='!stop', value='Останавливает музыку.', inline=False)
+    emb.set_footer(text='Bot made by NaGaRaT')
+    await ctx.send(embed=emb)
+
+
+@client.command(pass_context=True)
+async def time(ctx):
+    emb = discord.Embed(titLe='Time', colour=discord.Color.blue(), url='https://www.timeserver.ru')
+    emb.set_thumbnail(url='https://w7.pngwing.com/pngs/1/296/png-transparent-clock-mockup-time-management-graphic-designer-flip-clock-alarm-clocks.png')
+    now_date = datetime.datetime.now()
+    emb.add_field(name='Московское Время', value=format(now_date))
+    await ctx.send(embed=emb)
+
+
+@client.command()
+async def play(ctx, url: str):
+    song_there = os.path.isfile("song.mp3")
+    try:
+        if song_there:
+            os.remove("song.mp3")
+    except PermissionError:
+        await ctx.send("Дождитесь окончания музыки или используйте команду -stop")
+        return
+
+    #voiceChannel = discord.utils.get(ctx.guild.voice_channels, name='Taверna Lon-Dana')
+    voiceChannel = discord.utils.get(ctx.guild.voice_channels, name='General')
+    await voiceChannel.connect()
+    voice = discord.utils.get(client.voice_clients, guild=ctx.guild)
+
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }],
+    }
+    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+        ydl.download([url])
+    for file in os.listdir("./"):
+        if file.endswith(".mp3"):
+            os.rename(file, "song.mp3")
+    voice.play(discord.FFmpegPCMAudio("song.mp3"))
+
+
+@client.command(pass_context=True)
+async def join(ctx):
+    global voice
+    channel = ctx.message.author.voice.channel
+    voice = get(client.voice_clients, guild=ctx.guild)
+    if voice and voice.is_connected():
+        await voice.move_to(channel)
+    else:
+        voice = await channel.connect()
+
+
+@client.command(pass_context=True)
+async def leave(ctx):
+    global voice
+    channel = ctx.message.author.voice.channel
+    voice = get(client.voice_clients, guild=ctx.guild)
+    if voice and voice.is_connected():
+        await voice.disconect()
+    else:
+        voice = await channel.connect()
+
+
+@client.command()
+async def stop(ctx):
+    voice = discord.utils.get(client.voice_clients, guild=ctx.guild)
+    voice.stop()
+
+
+client.run(open('token.txt', 'r').readline())
